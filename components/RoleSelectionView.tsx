@@ -9,7 +9,7 @@ const ROLES: UserRole[] = ["Physician / NP", "Nursing Staff", "Allied Health and
 
 const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({ onRoleSelect }) => {
     return (
-        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center relative">
             <header className="mb-6">
                 <h1 className="text-3xl font-bold text-cyan-400 mb-2">Feedback on Hemodialysis Workflows</h1>
                 <h2 className="text-xl text-indigo-300">An Opportunity to Make Changes</h2>

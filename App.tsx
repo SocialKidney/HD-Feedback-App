@@ -9,6 +9,7 @@ import { summarizeConversation } from './services/geminiService';
 
 const App: React.FC = () => {
     const [appState, setAppState] = useState<AppState>('roleSelection');
+    
     const [userRole, setUserRole] = useState<UserRole | null>(null);
     const [siteArea, setSiteArea] = useState<SiteArea | null>(null);
     const [siteType, setSiteType] = useState<SiteType | null>(null);
@@ -54,7 +55,8 @@ const App: React.FC = () => {
             setSummary(summaryResult);
         } catch (err) {
             console.error("Error summarizing conversation:", err);
-            setError("Sorry, there was an error generating the summary. Please try again.");
+            const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+            setError(`Sorry, there was an error generating the summary. ${errorMessage} Please check the backend script configuration.`);
         } finally {
             setIsLoadingSummary(false);
         }

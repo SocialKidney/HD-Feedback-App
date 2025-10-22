@@ -1,36 +1,41 @@
-import { GoogleGenAI } from "@google/genai";
 import { ChatMessage } from '../types';
-
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { formConfig } from '../config';
 
 export const summarizeConversation = async (chatHistory: ChatMessage[]): Promise<string> => {
     if (chatHistory.length === 0) {
         return "No feedback was provided during the session.";
     }
 
-    const feedbackForSummary = chatHistory.map(msg => `- ${msg.content}`).join('\n');
-    
-    const prompt = `Your task is to analyze a list of user-submitted feedback points about workflow issues and extract ONLY the problems and pain points.
+    const payload = {
+        action: 'summarize',
+        transcript: chatHistory
+    };
 
-- Do NOT suggest solutions, improvements, or next steps.
-- Do NOT add any introductory or concluding sentences.
-- The output must be a simple, concise bulleted list.
-- Each bullet point should directly state a pain point identified by the user in their feedback.
+    try {
+        const response = await fetch(formConfig.googleWebAppUrl, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
-User Feedback:
----
-${feedbackForSummary}
----
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Error from backend:", errorBody);
+            throw new Error(`The server responded with status: ${response.status}`);
+        }
 
-Pain Points Identified:`;
+        const result = await response.json();
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: prompt,
-    });
-    return response.text;
+        if (result.result === 'error') {
+            throw new Error(result.message || 'An unknown error occurred on the server.');
+        }
+
+        return result.summary;
+
+    } catch (error) {
+        console.error("Failed to fetch summary from the backend proxy:", error);
+        throw new Error("Could not generate summary. This might be due to a misconfiguration of the backend script or a network issue. Check the console for details.");
+    }
 };

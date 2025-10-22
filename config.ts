@@ -3,7 +3,7 @@
 // that your app can send data to directly. This avoids the fragile pre-filled link issues.
 
 // --- ONE-TIME SETUP INSTRUCTIONS ---
-// Please follow these steps carefully. This will take about 5 minutes.
+// Please follow these steps carefully. This will take about 10 minutes.
 
 /*
 1.  **CREATE A GOOGLE SHEET:**
@@ -19,7 +19,14 @@
     - Paste it into the Apps Script editor.
     - Click the "Save project" icon (it looks like a floppy disk).
 
-4.  **DEPLOY THE SCRIPT AS A WEB APP:**
+4.  **ADD YOUR API KEY SECURELY:**
+    - In the left-hand menu of the Apps Script editor, click the "Project Settings" icon (a gear ⚙️).
+    - Scroll down to the "Script Properties" section and click "Add script property".
+    - **Property:** Enter `API_KEY` (must be exactly this name).
+    - **Value:** Paste your Google Gemini API key.
+    - Click "Save script properties". Your key is now stored securely on the server.
+
+5.  **DEPLOY THE SCRIPT AS A WEB APP:**
     - At the top right of the Apps Script editor, click the blue "Deploy" button.
     - Select "New deployment".
     - Click the gear icon next to "Select type" and choose "Web app".
@@ -30,21 +37,28 @@
           (This is CRITICAL. The app is anonymous, so the script must be accessible to anyone on the internet. It does not grant access to your Google account or the sheet itself, only to this specific script.)
     - Click the "Deploy" button.
 
-5.  **AUTHORIZE THE SCRIPT:**
+6.  **AUTHORIZE THE SCRIPT:**
     - A popup will ask for authorization. Click "Authorize access".
     - Choose your Google account.
-    - You will likely see a "Google hasn’t verified this app" warning. This is normal because it's your own script.
+    - You will likely see a "Google hasn’t verified this app" warning. This is normal.
     - Click "Advanced", and then click "Go to [Your Project Name] (unsafe)".
-    - On the next screen, scroll down and click "Allow" to grant the script permission to write to your spreadsheet.
+    - On the next screen, scroll down and click "Allow" to grant the script permission to write to your spreadsheet and connect to external services (the Gemini API).
 
-6.  **GET YOUR WEB APP URL:**
+7.  **GET YOUR WEB APP URL:**
     - After deploying, you will see a "Deployment successfully created" popup.
     - Copy the **Web app URL**. It will start with `https://script.google.com/macros/s/...`.
     - **This is your unique API endpoint.**
 
-7.  **UPDATE THE CONFIGURATION BELOW:**
+8.  **UPDATE THE CONFIGURATION BELOW:**
     - Paste the Web app URL you just copied into the `googleWebAppUrl` field below, replacing the placeholder text.
+
+9.  **IF YOU UPDATE THE SCRIPT LATER:**
+    - Click "Deploy" -> "Manage deployments".
+    - Select your deployment, click the pencil icon to "Edit".
+    - Choose "New version" from the "Version" dropdown.
+    - Click "Deploy". You do not need to copy the URL again.
 */
+
 
 export const formConfig = {
   // PASTE YOUR DEPLOYED WEB APP URL HERE
@@ -57,42 +71,97 @@ export const formConfig = {
 // --- DO NOT EDIT THE CODE BELOW ---
 // This is the code you will paste into the Google Apps Script editor in Step 3.
 export const APPS_SCRIPT_CODE = `
+const SPREADSHEET_NAME = "Form_Responses";
+
 function doPost(e) {
   try {
-    // Attempt to get the sheet named "Form_Responses".
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Form_Responses");
-
-    // If the sheet doesn't exist, create it and add headers.
-    if (!sheet) {
-      sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Form_Responses");
-      sheet.appendRow(["Timestamp", "Role", "Site Area", "Site Type", "Summary", "Transcript"]);
+    const data = JSON.parse(e.postData.contents);
+    
+    // Route the request based on the 'action' property in the payload
+    if (data.action === 'summarize') {
+      return handleSummarize(data);
+    } else if (data.action === 'submit') {
+      return handleSubmit(data);
+    } else {
+      throw new Error("Invalid action specified.");
     }
 
-    // Parse the incoming data from the app.
-    var data = JSON.parse(e.postData.contents);
-
-    // Prepare the row data for the spreadsheet.
-    var timestamp = new Date();
-    var role = data.role || 'N/A';
-    var siteArea = data.siteArea || 'N/A';
-    var siteType = data.siteType || 'N/A';
-    var summary = data.summary || 'N/A';
-    var transcript = data.transcript || 'N/A';
-
-    // Append the new row of data to the sheet.
-    sheet.appendRow([timestamp, role, siteArea, siteType, summary, transcript]);
-
-    // Return a success response to the app.
-    return ContentService
-      .createTextOutput(JSON.stringify({ "result": "success" }))
-      .setMimeType(ContentService.MimeType.JSON);
-
   } catch (error) {
-    // If any error occurs, log it and return an error response to the app.
-    // Logger.log(error); // You can view these logs in the Apps Script editor under "Executions"
+    // Logger.log(error.toString()); // Uncomment for debugging
     return ContentService
       .createTextOutput(JSON.stringify({ "result": "error", "message": error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function handleSummarize(data) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('API_KEY');
+  if (!apiKey) {
+    throw new Error("API_KEY is not set in Script Properties. Please follow setup instructions.");
+  }
+  
+  if (!data.transcript || data.transcript.length === 0) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ summary: "No feedback was provided during the session." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const feedbackForSummary = data.transcript.map(msg => "- " + msg.content).join('\\n');
+  
+  const prompt = \`Your task is to analyze a list of user-submitted feedback points about workflow issues and extract ONLY the problems and pain points.
+
+- Do NOT suggest solutions, improvements, or next steps.
+- Do NOT add any introductory or concluding sentences.
+- The output must be a simple, concise bulleted list.
+- Each bullet point should directly state a pain point identified by the user in their feedback.
+
+User Feedback:
+---
+\${feedbackForSummary}
+---
+
+Pain Points Identified:\`;
+
+  const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=' + apiKey;
+  
+  const options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'payload': JSON.stringify({
+      "contents": [{
+        "parts": [{ "text": prompt }]
+      }]
+    })
+  };
+
+  const response = UrlFetchApp.fetch(geminiUrl, options);
+  const result = JSON.parse(response.getContentText());
+  const summary = result.candidates[0].content.parts[0].text;
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({ summary: summary }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleSubmit(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPREADSHEET_NAME);
+  if (!sheet) {
+    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SPREADSHEET_NAME);
+    sheet.appendRow(["Timestamp", "Role", "Site Area", "Site Type", "Summary", "Transcript"]);
+  }
+
+  var payload = data.payload; // The form data is nested under 'payload'
+  var timestamp = new Date();
+  var role = payload.role || 'N/A';
+  var siteArea = payload.siteArea || 'N/A';
+  var siteType = payload.siteType || 'N/A';
+  var summary = payload.summary || 'N/A';
+  var transcript = payload.transcript || 'N/A';
+
+  sheet.appendRow([timestamp, role, siteArea, siteType, summary, transcript]);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ "result": "success" }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 `;

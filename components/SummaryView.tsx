@@ -54,12 +54,17 @@ const SummaryView: React.FC<SummaryViewProps> = ({ userRole, siteArea, siteType,
         setSubmissionStatus('submitting');
         setSubmissionError(null);
 
-        const payload = {
+        const submissionData = {
             role: userRole,
             siteArea: siteArea,
             siteType: siteType,
             summary: summary,
             transcript: generateFullTranscriptText(),
+        };
+
+        const payload = {
+            action: 'submit',
+            payload: submissionData
         };
 
         try {
@@ -74,7 +79,6 @@ const SummaryView: React.FC<SummaryViewProps> = ({ userRole, siteArea, siteType,
             
             // NOTE: With 'no-cors', we can't inspect the response body for success.
             // We optimistically assume success if the request doesn't throw an error.
-            // The Apps Script has error handling and will log issues on the Google side if they occur.
             setSubmissionStatus('submitted');
 
         } catch (err) {
