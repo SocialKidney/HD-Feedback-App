@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import HomeView from './components/HomeView';
-import FeedbackView from './components/InterviewView';
+import InterviewView from './components/InterviewView';
 import SummaryView from './components/SummaryView';
 import RoleSelectionView from './components/RoleSelectionView';
 import SiteSelectionView from './components/SiteSelectionView';
@@ -126,7 +126,7 @@ const App: React.FC = () => {
                     handleBackToHome();
                     return null;
                 }
-                return <FeedbackView topic={currentTopic} onFinish={handleFeedbackFinish} />;
+                return <InterviewView topic={currentTopic} onFinish={handleFeedbackFinish} />;
             case 'summary':
                 if (!userRole || !siteArea || !siteType) { // Fallback
                     handleBackToRoleSelection();

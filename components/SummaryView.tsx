@@ -74,11 +74,18 @@ const SummaryView: React.FC<SummaryViewProps> = ({ userRole, siteArea, siteType,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
-                mode: 'no-cors' // Apps Script web apps can be tricky with CORS, no-cors is a simple way to post
             });
             
-            // NOTE: With 'no-cors', we can't inspect the response body for success.
-            // We optimistically assume success if the request doesn't throw an error.
+            if (!response.ok) {
+                throw new Error(`The server responded with status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.result !== 'success') {
+                throw new Error(result.message || 'The server indicated a submission error.');
+            }
+            
             setSubmissionStatus('submitted');
 
         } catch (err) {

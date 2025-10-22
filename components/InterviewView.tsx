@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ChatMessage, Topic } from '../types';
 
-interface FeedbackViewProps {
+interface InterviewViewProps {
     topic: Topic;
     onFinish: (history: ChatMessage[]) => void;
 }
 
-const FeedbackView: React.FC<FeedbackViewProps> = ({ topic, onFinish }) => {
+const InterviewView: React.FC<InterviewViewProps> = ({ topic, onFinish }) => {
     const [currentFeedback, setCurrentFeedback] = useState('');
     const [submittedFeedback, setSubmittedFeedback] = useState<ChatMessage[]>([]);
 
@@ -80,4 +80,4 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ topic, onFinish }) => {
     );
 };
 
-export default FeedbackView;
+export default InterviewView;

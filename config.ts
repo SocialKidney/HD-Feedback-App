@@ -87,10 +87,10 @@ function doPost(e) {
     }
 
   } catch (error) {
-    // Logger.log(error.toString()); // Uncomment for debugging
     return ContentService
       .createTextOutput(JSON.stringify({ "result": "error", "message": error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .addHeader("Access-Control-Allow-Origin", "*");
   }
 }
 
@@ -103,7 +103,8 @@ function handleSummarize(data) {
   if (!data.transcript || data.transcript.length === 0) {
     return ContentService
       .createTextOutput(JSON.stringify({ summary: "No feedback was provided during the session." }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .addHeader("Access-Control-Allow-Origin", "*");
   }
 
   const feedbackForSummary = data.transcript.map(msg => "- " + msg.content).join('\\n');
@@ -140,7 +141,8 @@ Pain Points Identified:\`;
   
   return ContentService
     .createTextOutput(JSON.stringify({ summary: summary }))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .addHeader("Access-Control-Allow-Origin", "*");
 }
 
 function handleSubmit(data) {
@@ -162,6 +164,7 @@ function handleSubmit(data) {
 
   return ContentService
     .createTextOutput(JSON.stringify({ "result": "success" }))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .addHeader("Access-Control-Allow-Origin", "*");
 }
 `;
